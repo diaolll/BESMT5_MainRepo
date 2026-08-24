@@ -62,6 +62,37 @@ type PatchStudentRequest struct {
 	IsActive *bool    `json:"is_active,omitempty"`
 }
 
+// User adalah entitas untuk latihan Langkah Panduan (Modul 3).
+type User struct {
+	ID        int       `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Password  string    `json:"password"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// POST — semua field wajib
+type CreateUserRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// PUT — ganti seluruh isi
+type ReplaceUserRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	IsActive bool   `json:"is_active"`
+}
+
+// PATCH — ubah sebagian
+type PatchUserRequest struct {
+	Username *string `json:"username,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	IsActive *bool   `json:"is_active,omitempty"`
+}
+
 // Amplop baku untuk semua respons
 type WebResponse struct {
 	Success bool   `json:"success"`
