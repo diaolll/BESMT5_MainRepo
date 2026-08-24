@@ -89,3 +89,8 @@ type ListQuery struct {
 	MinGrade  *float64
 	MaxGrade  *float64
 }
+
+// Offset menghitung berapa baris yang dilewati untuk halaman ini.
+func (q ListQuery) Offset() int {
+	return (q.Page - 1) * q.Limit
+}
