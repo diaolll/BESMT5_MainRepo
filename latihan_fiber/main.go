@@ -50,6 +50,9 @@ func main() {
 	userRepository := repository.NewUserRepository(pool)
 	userHandler := NewUserHandler(userRepository)
 
+	studentRepository := repository.NewStudentRepository(pool)
+	studentHandler := NewStudentHandler(studentRepository)
+
 	// 4. Aplikasi
 	app := fiber.New(fiber.Config{
 		AppName: "Tugas Mandiri - REST API Students",
@@ -94,7 +97,13 @@ func main() {
 	u.Patch("/:id", userHandler.Patch)
 	u.Delete("/:id", userHandler.Delete)
 
-	// --- Students (Tugas Mandiri) akan didaftarkan di sini setelah repository/handler-nya jadi ---
+	s := api.Group("/students", requireJSON)
+	s.Get("/", studentHandler.List)
+	s.Get("/:id", studentHandler.Get)
+	s.Post("/", studentHandler.Create)
+	s.Put("/:id", studentHandler.Replace)
+	s.Patch("/:id", studentHandler.Patch)
+	s.Delete("/:id", studentHandler.Delete)
 
 	app.Use(func(c *fiber.Ctx) error {
 		return fail(c, fiber.StatusNotFound, "endpoint tidak ditemukan")
