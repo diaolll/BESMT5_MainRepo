@@ -23,7 +23,7 @@ func NewStudentHandler(repo repository.StudentRepository) *StudentHandler {
 func terjemahkanErrorStudent(c *fiber.Ctx, err error, pesanUmum string) error {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
-		return fail(c, fiber.StatusNotFound, "student tidak ditemukan")
+		return fail(c, fiber.StatusNotFound, "student tidak ditemukan") 
 	case errors.Is(err, repository.ErrDuplicate):
 		return fail(c, fiber.StatusConflict, "nim sudah dipakai")
 	default:
