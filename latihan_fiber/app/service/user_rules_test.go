@@ -1,6 +1,10 @@
 package service
 
-import "testing"
+import (
+	"testing"
+
+	"latihan_fiber/app/model"
+)
 
 func TestCountTotalPages(t *testing.T) {
 	cases := []struct{ total, limit, want int }{
