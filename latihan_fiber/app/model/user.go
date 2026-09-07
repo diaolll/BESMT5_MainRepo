@@ -62,12 +62,13 @@ type PatchStudentRequest struct {
 	IsActive *bool    `json:"is_active,omitempty"`
 }
 
-// User adalah entitas untuk latihan Langkah Panduan (Modul 3).
+// User adalah entitas untuk latihan Langkah Panduan (Modul 3 & 5).
 type User struct {
 	ID        int       `json:"id"`
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
-	Password  string    `json:"password"`
+	Password  string    `json:"-"` // tidak pernah keluar sebagai JSON
+	Role      string    `json:"role"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 }
