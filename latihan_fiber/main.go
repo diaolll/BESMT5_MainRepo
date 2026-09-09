@@ -12,14 +12,24 @@ import (
 	"latihan_fiber/app/service"
 	"latihan_fiber/config"
 	"latihan_fiber/database"
+	"latihan_fiber/helper"
+	"latihan_fiber/route"
 )
 
+const minSecretLength = 32
+
 func main() {
-	// 1. Konfigurasi dan logger
 	config.LoadEnv()
 	logger := config.NewLogger()
 
-	// 2. Database
+	jwtSecret := config.GetEnv("JWT_SECRET", "")
+	if len(jwtSecret) < minSecretLength {
+		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek",
+			slog.Int("minimal_karakter", minSecretLength),
+			slog.Int("diberikan", len(jwtSecret)))
+		os.Exit(1)
+	}
+
 	pool, err := database.NewPool(context.Background())
 	if err != nil {
 		logger.Error("gagal terhubung ke database", slog.String("error", err.Error()))
@@ -27,15 +37,29 @@ func main() {
 	}
 	defer pool.Close()
 
-	// 3. Perakitan dari dalam ke luar: repository -> service
-	userRepo := repository.NewUserRepository(pool)
-	userService := service.NewUserService(userRepo)
+	jwtManager := helper.NewJWTManager(
+		jwtSecret,
+		config.GetEnv("JWT_ISSUER", "praktikum-backend"),
+		time.Duration(config.GetEnvInt("JWT_ACCESS_TTL_MINUTES", 15))*time.Minute,
+	)
 
+	userRepo := repository.NewUserRepository(pool)
+	tokenRepo := repository.NewTokenRepository(pool)
+	userService := service.NewUserService(userRepo)
 	studentRepo := repository.NewStudentRepository(pool)
 	studentService := service.NewStudentService(studentRepo)
+	authService := service.NewAuthService(
+		userRepo, tokenRepo, jwtManager,
+		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
+	)
 
-	// 4. Aplikasi
-	app := config.NewApp(logger, pool, userService, studentService)
+	app := config.NewApp(logger, route.Dependencies{
+		Pool:           pool,
+		JWT:            jwtManager,
+		UserService:    userService,
+		StudentService: studentService,
+		AuthService:    authService,
+	})
 
 	port := config.GetEnv("APP_PORT", "3000")
 	go func() {
@@ -46,7 +70,6 @@ func main() {
 	}()
 	logger.Info("server berjalan", slog.String("port", port))
 
-	// 5. Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
