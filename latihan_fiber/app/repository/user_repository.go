@@ -22,6 +22,7 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (model.User, error)
 	Create(ctx context.Context, u model.User) (model.User, error)
 	Update(ctx context.Context, u model.User) (model.User, error)
+	UpdateRole(ctx context.Context, id int, role string) (model.User, error)
 	Delete(ctx context.Context, id int) error
 }
 
@@ -177,6 +178,28 @@ func (r *userPostgresRepository) Update(
 		return model.User{}, fmt.Errorf("memperbarui user: %w", err)
 	}
 	return u, nil
+}
+
+func (r *userPostgresRepository) UpdateRole(
+	ctx context.Context, id int, role string,
+) (model.User, error) {
+	const userColumns = `id, username, email, password, role, is_active, created_at`
+	updated, err := scanUser(r.pool.QueryRow(ctx,
+		"UPDATE users SET role = $1 WHERE id = $2 RETURNING "+userColumns,
+		role, id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.User{}, ErrNotFound
+		}
+		return model.User{}, fmt.Errorf("mengubah role user: %w", err)
+	}
+	return updated, nil
+}
+
+func scanUser(row pgx.Row) (model.User, error) {
+	var u model.User
+	err := row.Scan(&u.ID, &u.Username, &u.Email, &u.Password, &u.Role, &u.IsActive, &u.CreatedAt)
+	return u, err
 }
 
 func (r *userPostgresRepository) Delete(ctx context.Context, id int) error {

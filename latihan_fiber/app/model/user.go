@@ -14,6 +14,7 @@ type Student struct {
 	Name      string    `json:"name"`
 	Grade     float64   `json:"grade"`
 	IsActive  bool      `json:"is_active"`
+	OwnerID   *int      `json:"owner_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -71,6 +72,11 @@ type User struct {
 	Role      string    `json:"role"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// AssignRoleRequest dipakai endpoint PATCH /users/:id/role.
+type AssignRoleRequest struct {
+	Role string `json:"role"`
 }
 
 // POST — semua field wajib
