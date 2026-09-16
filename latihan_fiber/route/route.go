@@ -15,6 +15,7 @@ import (
 type Dependencies struct {
 	Pool           *pgxpool.Pool
 	JWT            *helper.JWTManager
+	Permissions    *helper.PermissionSet
 	UserService    *service.UserService
 	StudentService *service.StudentService
 	AuthService    *service.AuthService
@@ -32,23 +33,46 @@ func Register(app *fiber.App, deps Dependencies) {
 	auth.Post("/logout", deps.AuthService.Logout)
 	auth.Get("/me", middleware.RequireAuth(deps.JWT), deps.AuthService.Me)
 
-	// --- wajib auth: users ---
-	users := api.Group("/users", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
-	users.Get("/", deps.UserService.List)
+	// --- wajib login, hak akses diperiksa per endpoint ---
+	users := api.Group("/users",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	perms := deps.Permissions
+	// Hak dapat diputuskan tanpa melihat data -> middleware.
+	users.Get("/",
+		middleware.RequirePermission(perms, "user:list"),
+		deps.UserService.List)
+	users.Post("/",
+		middleware.RequirePermission(perms, "user:update:any"),
+		deps.UserService.Create)
+	users.Delete("/:id",
+		middleware.RequirePermission(perms, "user:delete"),
+		deps.UserService.Delete)
+	users.Patch("/:id/role",
+		middleware.RequirePermission(perms, "role:assign"),
+		deps.UserService.AssignRole)
+	// Hak bergantung pada kepemilikan data -> diperiksa di service.
 	users.Get("/:id", deps.UserService.Get)
-	users.Post("/", deps.UserService.Create)
 	users.Put("/:id", deps.UserService.Replace)
 	users.Patch("/:id", deps.UserService.Patch)
-	users.Delete("/:id", deps.UserService.Delete)
 
-	// --- wajib auth: students (Tugas Mandiri C.3) ---
-	students := api.Group("/students", middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
-	students.Get("/", deps.StudentService.List)
+	// --- students: tugas mandiri C.2 ---
+	students := api.Group("/students",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	students.Get("/",
+		middleware.RequirePermission(perms, "student:list"),
+		deps.StudentService.List)
+	students.Post("/",
+		middleware.RequirePermission(perms, "student:create"),
+		deps.StudentService.Create)
+	students.Delete("/:id",
+		middleware.RequirePermission(perms, "student:delete"),
+		deps.StudentService.Delete)
+	// ownership diperiksa di service
 	students.Get("/:id", deps.StudentService.Get)
-	students.Post("/", deps.StudentService.Create)
 	students.Put("/:id", deps.StudentService.Replace)
 	students.Patch("/:id", deps.StudentService.Patch)
-	students.Delete("/:id", deps.StudentService.Delete)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {
