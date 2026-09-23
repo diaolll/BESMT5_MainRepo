@@ -6,56 +6,25 @@ import (
 	"latihan_fiber/app/model"
 )
 
-// File ini business rules MURNI: tidak menyentuh fiber.Ctx, tidak
-// menyentuh database, tidak tahu apa pun tentang HTTP.
-
-func ValidateCreate(req model.CreateUserRequest) map[string]string {
-	errs := map[string]string{}
-	if strings.TrimSpace(req.Username) == "" {
-		errs["username"] = "wajib diisi"
-	}
-	if !isValidEmail(req.Email) {
-		errs["email"] = "format email tidak valid"
-	}
-	if len(req.Password) < 8 {
-		errs["password"] = "minimal 8 karakter"
-	}
-	return errs
-}
-
-func ValidateReplace(req model.ReplaceUserRequest) map[string]string {
-	errs := map[string]string{}
-	if strings.TrimSpace(req.Username) == "" {
-		errs["username"] = "wajib diisi pada PUT"
-	}
-	if !isValidEmail(req.Email) {
-		errs["email"] = "wajib diisi dan berformat email pada PUT"
-	}
-	return errs
-}
-
-func ApplyPatch(
-	current model.User, req model.PatchUserRequest,
-) (model.User, map[string]string) {
-	errs := map[string]string{}
+// ApplyPatch menggabungkan — validasi sudah via tag, jadi tidak mengembalikan error.
+// Namun untuk kompatibilitas tes lama, versi 2-return tetap disediakan: map selalu nil.
+func ApplyPatch(current model.User, req model.PatchUserRequest) (model.User, map[string]string) {
 	if req.Username != nil {
-		if strings.TrimSpace(*req.Username) == "" {
-			errs["username"] = "tidak boleh kosong"
-		} else {
-			current.Username = *req.Username
-		}
+		current.Username = strings.TrimSpace(*req.Username)
 	}
 	if req.Email != nil {
-		if !isValidEmail(*req.Email) {
-			errs["email"] = "format email tidak valid"
-		} else {
-			current.Email = *req.Email
-		}
+		current.Email = strings.TrimSpace(*req.Email)
 	}
 	if req.IsActive != nil {
 		current.IsActive = *req.IsActive
 	}
-	return current, errs
+	return current, nil
+}
+
+// applyPatchInternal dipakai service yang sudah tidak butuh map.
+func applyPatch(current model.User, req model.PatchUserRequest) model.User {
+	u, _ := ApplyPatch(current, req)
+	return u
 }
 
 func IsEmptyPatch(req model.PatchUserRequest) bool {
@@ -67,12 +36,4 @@ func CountTotalPages(total, limit int) int {
 		return 0
 	}
 	return (total + limit - 1) / limit
-}
-
-// isValidEmail adalah pemeriksaan sederhana, bukan validasi RFC.
-func isValidEmail(email string) bool {
-	email = strings.TrimSpace(email)
-	at := strings.Index(email, "@")
-	dot := strings.LastIndex(email, ".")
-	return at > 0 && dot > at+1 && dot < len(email)-1
 }
