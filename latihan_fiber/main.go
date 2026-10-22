@@ -57,20 +57,25 @@ func main() {
 	logger.Info("permission dimuat", slog.Any("roles", permissions.KnownRoles()))
 
 	studentRepo := repository.NewStudentRepository(pool)
+	courseRepo := repository.NewCourseRepository(pool)
+	txManager := repository.NewTxManager(pool)
+
 	userService := service.NewUserService(userRepo, permissions)
 	studentService := service.NewStudentService(studentRepo, permissions)
+	courseService := service.NewCourseService(courseRepo, txManager)
 	authService := service.NewAuthService(
 		userRepo, tokenRepo, jwtManager, permissions,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
 
 	app := config.NewApp(logger, route.Dependencies{
-		Pool:        pool,
-		JWT:         jwtManager,
-		Permissions: permissions,
+		Pool:           pool,
+		JWT:            jwtManager,
+		Permissions:    permissions,
 		UserService:    userService,
 		StudentService: studentService,
 		AuthService:    authService,
+		CourseService:  courseService,
 	})
 
 	port := config.GetEnv("APP_PORT", "3000")
