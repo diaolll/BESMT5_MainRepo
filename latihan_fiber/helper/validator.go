@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
@@ -35,6 +36,10 @@ func newValidator() *validator.Validate {
 	// FIX: sebelumnya memakai != "" yang terbalik (true saat lemah). Harus == "" agar true saat kuat.
 	_ = v.RegisterValidation("strongpassword", func(fl validator.FieldLevel) bool {
 		return passwordStrength(fl.Field().String()) == ""
+	})
+	_ = v.RegisterValidation("date", func(fl validator.FieldLevel) bool {
+		_, err := time.Parse("2006-01-02", fl.Field().String())
+		return err == nil
 	})
 	_ = v.RegisterValidation("nim", func(fl validator.FieldLevel) bool {
 		s := fl.Field().String()
@@ -82,13 +87,19 @@ func messageFor(fe validator.FieldError) string {
 	case "email":
 		return "format email tidak valid"
 	case "min":
-		if fe.Kind() == reflect.String {
+		switch fe.Kind() {
+		case reflect.String:
 			return "minimal " + fe.Param() + " karakter"
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return "minimal " + fe.Param() + " item"
 		}
 		return "nilai minimal " + fe.Param()
 	case "max":
-		if fe.Kind() == reflect.String {
+		switch fe.Kind() {
+		case reflect.String:
 			return "maksimal " + fe.Param() + " karakter"
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return "maksimal " + fe.Param() + " item"
 		}
 		return "nilai maksimal " + fe.Param()
 	case "alphanum":
@@ -99,6 +110,8 @@ func messageFor(fe validator.FieldError) string {
 		return "hanya boleh huruf, angka, titik, dan garis bawah"
 	case "nim":
 		return "format NIM tidak valid (8-20 huruf/angka)"
+	case "date":
+		return "format tanggal harus YYYY-MM-DD"
 	case "strongpassword":
 		if value, ok := fe.Value().(string); ok {
 			return passwordStrength(value)
