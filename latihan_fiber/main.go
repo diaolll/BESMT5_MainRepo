@@ -37,6 +37,18 @@ func main() {
 	}
 	defer pool.Close()
 
+	mongoClient, err := database.NewMongoClient(context.Background())
+	if err != nil {
+		logger.Error("gagal terhubung ke MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = mongoClient.Disconnect(ctx)
+	}()
+	mongoDB := mongoClient.Database(config.GetEnv("MONGO_DATABASE", "praktikum_backend"))
+
 	jwtManager := helper.NewJWTManager(
 		jwtSecret,
 		config.GetEnv("JWT_ISSUER", "praktikum-backend"),
@@ -59,23 +71,31 @@ func main() {
 	studentRepo := repository.NewStudentRepository(pool)
 	courseRepo := repository.NewCourseRepository(pool)
 	txManager := repository.NewTxManager(pool)
+	portfolioRepo := repository.NewPortfolioRepository(mongoDB)
+	if err := portfolioRepo.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 
 	userService := service.NewUserService(userRepo, permissions)
 	studentService := service.NewStudentService(studentRepo, permissions)
 	courseService := service.NewCourseService(courseRepo, txManager)
+	portfolioService := service.NewPortfolioService(portfolioRepo, studentRepo, permissions)
 	authService := service.NewAuthService(
 		userRepo, tokenRepo, jwtManager, permissions,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
 
 	app := config.NewApp(logger, route.Dependencies{
-		Pool:           pool,
-		JWT:            jwtManager,
-		Permissions:    permissions,
-		UserService:    userService,
-		StudentService: studentService,
-		AuthService:    authService,
-		CourseService:  courseService,
+		Pool:             pool,
+		Mongo:            mongoClient,
+		JWT:              jwtManager,
+		Permissions:      permissions,
+		UserService:      userService,
+		StudentService:   studentService,
+		AuthService:      authService,
+		CourseService:    courseService,
+		PortfolioService: portfolioService,
 	})
 
 	port := config.GetEnv("APP_PORT", "3000")
